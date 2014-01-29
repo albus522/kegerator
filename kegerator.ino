@@ -6,6 +6,9 @@
 #define ONE_WIRE_BUS 6
 #define TEMPERATURE_PRECISION 12
 
+#define TEC_CONTROL 7
+#define FAN_CONTROL 5
+
 OneWire oneWire(ONE_WIRE_BUS);
 
 DallasTemperature sensors(&oneWire);
@@ -14,9 +17,6 @@ DallasTemperature sensors(&oneWire);
 //DeviceAddress internalTherm, heatsinkTherm;
 DeviceAddress internalTherm = { 0x28, 0xF0, 0x5D, 0x67, 0x5, 0x0, 0x0, 0x36 };
 DeviceAddress heatsinkTherm = { 0x28, 0x7, 0x7C, 0x68, 0x5, 0x0, 0x0, 0x6E };
-
-int tecControl = 7;
-int fanControl = 5;
 
 LiquidCrystal lcd(8, 9, 10, 11, 12, 13);
 
@@ -35,10 +35,10 @@ unsigned long prevTempAt;
 
 void setup(void)
 {
-  pinMode(tecControl, OUTPUT);
-  analogWrite(fanControl, 100);
+  pinMode(TEC_CONTROL, OUTPUT);
+  analogWrite(FAN_CONTROL, 100);
 
-  digitalWrite(tecControl, HIGH);
+  digitalWrite(TEC_CONTROL, HIGH);
   start = millis();
 
   setTempF = EEPROM.read(0);
@@ -135,9 +135,9 @@ void loop(void)
   now = millis();
   delay(constrain(duty - (now - start), 0, maxDuty));
 
-  digitalWrite(tecControl, LOW);
+  digitalWrite(TEC_CONTROL, LOW);
   delay(constrain(maxDuty - duty, 1000, maxDuty));
 
-  digitalWrite(tecControl, HIGH);
+  digitalWrite(TEC_CONTROL, HIGH);
   start = millis();
 }
