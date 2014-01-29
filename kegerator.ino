@@ -6,6 +6,9 @@
 #define TEC_CONTROL 7
 #define FAN_CONTROL 5
 
+#define FAN_MIN 100
+#define FAN_MAX 255
+
 LiquidCrystal lcd(8, 9, 10, 11, 12, 13);
 
 #define ONE_WIRE_BUS 6
@@ -36,7 +39,7 @@ unsigned long prevTempAt;
 void setup(void)
 {
   pinMode(TEC_CONTROL, OUTPUT);
-  analogWrite(FAN_CONTROL, 100);
+  analogWrite(FAN_CONTROL, FAN_MIN);
 
   digitalWrite(TEC_CONTROL, HIGH);
   start = millis();
@@ -131,6 +134,12 @@ void loop(void)
   lcd.print("         ");
   lcd.setCursor(7,1);
   lcd.print(duty / 100.0);
+
+  if(duty > (maxDuty * 8 / 10)) {
+    analogWrite(FAN_CONTROL, (duty - (maxDuty * 8 / 10)) * (FAN_MAX - FAN_MIN) / (maxDuty * 2 / 10) + FAN_MIN);
+  } else {
+    analogWrite(FAN_CONTROL, FAN_MIN);
+  }
 
   now = millis();
   delay(constrain(duty - (now - start), 0, maxDuty));
