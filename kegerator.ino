@@ -27,11 +27,9 @@ DeviceAddress heatsinkTherm = { 0x28, 0x7, 0x7C, 0x68, 0x5, 0x0, 0x0, 0x6E };
 
 volatile int setTempF;
 volatile unsigned long lastSetTempUpdate;
-// float setTempC = (setTempF - 32) * 5 / 9.0;
 unsigned long duty = 5000;
 unsigned long start;
 unsigned long now;
-unsigned long pause;
 float tempF;
 float prevTempF;
 float tempChange;
@@ -57,19 +55,19 @@ void setup(void)
   lcd.print("Duty % ");
   lcd.print(duty / 100.0);
 
-  // Start up the library
+  // Start up the DallasTemperature library
   sensors.begin();
 
-  // set the resolution to 9 bit
+  // set the resolution
   sensors.setResolution(internalTherm, TEMPERATURE_PRECISION);
   sensors.setResolution(heatsinkTherm, TEMPERATURE_PRECISION);
-
-  attachInterrupt(0, decrementSetTemp, RISING); // Pin 3
-  attachInterrupt(1, incrementSetTemp, RISING); // Pin 2
 
   sensors.requestTemperatures();
   prevTempF = sensors.getTempF(internalTherm);
   prevTempAt = millis();
+
+  attachInterrupt(0, decrementSetTemp, RISING); // Pin 3
+  attachInterrupt(1, incrementSetTemp, RISING); // Pin 2
 }
 
 void decrementSetTemp()
