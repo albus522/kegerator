@@ -27,7 +27,7 @@ DeviceAddress heatsinkTherm = { 0x28, 0x7, 0x7C, 0x68, 0x5, 0x0, 0x0, 0x6E };
 
 volatile int setTempF;
 volatile unsigned long lastSetTempUpdate;
-unsigned long duty = 5000;
+unsigned long duty = 7500;
 unsigned long start;
 unsigned long now;
 float tempF;
@@ -44,7 +44,7 @@ void setup(void)
   start = millis();
 
   setTempF = EEPROM.read(0);
-  if(setTempF > 100) setTempF = 45;
+  if(setTempF > 100) setTempF = 42;
   lastSetTempUpdate = millis();
 
   lcd.begin(16, 2);
