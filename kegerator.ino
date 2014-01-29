@@ -30,6 +30,8 @@ unsigned long now;
 unsigned long pause;
 float tempF;
 float prevTempF;
+float tempChange;
+unsigned long prevTempAt;
 
 void setup(void)
 {
@@ -63,6 +65,7 @@ void setup(void)
 
   sensors.requestTemperatures();
   prevTempF = sensors.getTempF(internalTherm);
+  prevTempAt = millis();
 }
 
 void decrementSetTemp()
@@ -89,24 +92,40 @@ void changeSetTemp(int newTemp)
 
 void loop(void)
 {
+  unsigned long timeSinceChange;
   sensors.requestTemperatures();
 
   tempF = sensors.getTempF(internalTherm);
+  if(tempF != prevTempF) {
+    tempChange      = tempF - prevTempF;
+    prevTempF       = tempF;
+    prevTempAt      = millis();
+    timeSinceChange = 0;
+  } else {
+    timeSinceChange = millis() - prevTempAt;
+  }
+
   // Refresh because the set temp interrupt
   // could mess this up
   lcd.setCursor(6,0);
   lcd.print(" Cur ");
   lcd.print(int(tempF * 100) / 100.0);
+
   if(tempF > (setTempF + 4)) {
     duty = maxDuty;
-  } else if(tempF < setTempF && tempF <= prevTempF) {
-    duty -= 10 * long((setTempF - tempF) * 5);
-    if(duty > maxDuty || duty < 1000) duty = 1000;
-  } else if(tempF > setTempF && tempF >= prevTempF) {
-    duty += 10 * long((tempF - setTempF) * 5);
-    if(duty > maxDuty) duty = maxDuty;
+  } else if(tempF < setTempF) {
+    // Temp decreasing or 60 seconds since last change
+    if(tempChange < 0 || timeSinceChange > 60000) {
+      duty -= long((setTempF - tempF) * 50);
+      if(duty > maxDuty || duty < 1000) duty = 1000;
+    }
+  } else if(tempF > setTempF) {
+    // Temp increasing or 30 seconds since last change
+    if(tempChange > 0 || timeSinceChange > 30000) {
+      duty += long((tempF - setTempF) * 50);
+      if(duty > maxDuty) duty = maxDuty;
+    }
   }
-  prevTempF = tempF;
 
   lcd.setCursor(7,1);
   lcd.print("         ");
@@ -114,7 +133,7 @@ void loop(void)
   lcd.print(duty / 100.0);
 
   now = millis();
-  delay(constrain(duty - (now - start), 1000, maxDuty));
+  delay(constrain(duty - (now - start), 0, maxDuty));
 
   digitalWrite(tecControl, LOW);
   delay(constrain(maxDuty - duty, 1000, maxDuty));
