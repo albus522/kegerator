@@ -21,6 +21,7 @@ int fanControl = 5;
 LiquidCrystal lcd(8, 9, 10, 11, 12, 13);
 
 volatile int setTempF;
+volatile unsigned long lastSetTempUpdate;
 // float setTempC = (setTempF - 32) * 5 / 9.0;
 unsigned long maxDuty = 10000;
 unsigned long duty = 5000;
@@ -40,6 +41,7 @@ void setup(void)
 
   setTempF = EEPROM.read(0);
   if(setTempF > 100) setTempF = 45;
+  lastSetTempUpdate = millis();
 
   lcd.begin(16, 2);
   lcd.print("Set ");
@@ -75,10 +77,14 @@ void incrementSetTemp()
 
 void changeSetTemp(int newTemp)
 {
-  setTempF = newTemp;
-  EEPROM.write(0, newTemp);
-  lcd.setCursor(4, 0);
-  lcd.print(setTempF);
+  unsigned long now = millis();
+  if(now < lastSetTempUpdate || (now - lastSetTempUpdate) > 500) {
+    setTempF = newTemp;
+    EEPROM.write(0, newTemp);
+    lcd.setCursor(4, 0);
+    lcd.print(setTempF);
+    lastSetTempUpdate = now;
+  }
 }
 
 void loop(void)
