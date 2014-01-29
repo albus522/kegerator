@@ -3,11 +3,13 @@
 #include <DallasTemperature.h>
 #include <EEPROM.h>
 
-#define ONE_WIRE_BUS 6
-#define TEMPERATURE_PRECISION 12
-
 #define TEC_CONTROL 7
 #define FAN_CONTROL 5
+
+LiquidCrystal lcd(8, 9, 10, 11, 12, 13);
+
+#define ONE_WIRE_BUS 6
+#define TEMPERATURE_PRECISION 12
 
 OneWire oneWire(ONE_WIRE_BUS);
 
@@ -17,8 +19,6 @@ DallasTemperature sensors(&oneWire);
 //DeviceAddress internalTherm, heatsinkTherm;
 DeviceAddress internalTherm = { 0x28, 0xF0, 0x5D, 0x67, 0x5, 0x0, 0x0, 0x36 };
 DeviceAddress heatsinkTherm = { 0x28, 0x7, 0x7C, 0x68, 0x5, 0x0, 0x0, 0x6E };
-
-LiquidCrystal lcd(8, 9, 10, 11, 12, 13);
 
 volatile int setTempF;
 volatile unsigned long lastSetTempUpdate;
