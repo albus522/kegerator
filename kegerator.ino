@@ -23,10 +23,11 @@ DallasTemperature sensors(&oneWire);
 DeviceAddress internalTherm = { 0x28, 0xF0, 0x5D, 0x67, 0x5, 0x0, 0x0, 0x36 };
 DeviceAddress heatsinkTherm = { 0x28, 0x7, 0x7C, 0x68, 0x5, 0x0, 0x0, 0x6E };
 
+#define MAX_DUTY 10000
+
 volatile int setTempF;
 volatile unsigned long lastSetTempUpdate;
 // float setTempC = (setTempF - 32) * 5 / 9.0;
-unsigned long maxDuty = 10000;
 unsigned long duty = 5000;
 unsigned long start;
 unsigned long now;
@@ -115,18 +116,18 @@ void loop(void)
   lcd.print(int(tempF * 100) / 100.0);
 
   if(tempF > (setTempF + 4)) {
-    duty = maxDuty;
+    duty = MAX_DUTY;
   } else if(tempF < setTempF) {
     // Temp decreasing or 60 seconds since last change
     if(tempChange < 0 || timeSinceChange > 60000) {
       duty -= long((setTempF - tempF) * 50);
-      if(duty > maxDuty || duty < 1000) duty = 1000;
+      if(duty > MAX_DUTY || duty < 1000) duty = 1000;
     }
   } else if(tempF > setTempF) {
     // Temp increasing or 30 seconds since last change
     if(tempChange > 0 || timeSinceChange > 30000) {
       duty += long((tempF - setTempF) * 50);
-      if(duty > maxDuty) duty = maxDuty;
+      if(duty > MAX_DUTY) duty = MAX_DUTY;
     }
   }
 
@@ -135,17 +136,17 @@ void loop(void)
   lcd.setCursor(7,1);
   lcd.print(duty / 100.0);
 
-  if(duty > (maxDuty * 8 / 10)) {
-    analogWrite(FAN_CONTROL, (duty - (maxDuty * 8 / 10)) * (FAN_MAX - FAN_MIN) / (maxDuty * 2 / 10) + FAN_MIN);
+  if(duty > (MAX_DUTY * 8 / 10)) {
+    analogWrite(FAN_CONTROL, (duty - (MAX_DUTY * 8 / 10)) * (FAN_MAX - FAN_MIN) / (MAX_DUTY * 2 / 10) + FAN_MIN);
   } else {
     analogWrite(FAN_CONTROL, FAN_MIN);
   }
 
   now = millis();
-  delay(constrain(duty - (now - start), 0, maxDuty));
+  delay(constrain(duty - (now - start), 0, MAX_DUTY));
 
   digitalWrite(TEC_CONTROL, LOW);
-  delay(constrain(maxDuty - duty, 1000, maxDuty));
+  delay(constrain(MAX_DUTY - duty, 1000, MAX_DUTY));
 
   digitalWrite(TEC_CONTROL, HIGH);
   start = millis();
