@@ -26,14 +26,19 @@ DeviceAddress heatsinkTherm = { 0x28, 0x7, 0x7C, 0x68, 0x5, 0x0, 0x0, 0x6E };
 #define MAX_DUTY 10000
 
 volatile int setTempF;
+volatile int16_t setTempRaw;
 volatile unsigned long lastSetTempUpdate;
 unsigned long duty = 7500;
 unsigned long start;
 unsigned long now;
-float tempF;
-float prevTempF;
-float tempChange;
+int16_t tempRaw;
+int16_t prevTempRaw;
+int16_t tempChange;
 unsigned long prevTempAt;
+
+int16_t tempFToRaw(int temp) {
+  return (temp - 32) * 5 * 128 / 9;
+}
 
 void setup(void)
 {
@@ -45,6 +50,7 @@ void setup(void)
 
   setTempF = EEPROM.read(0);
   if(setTempF > 100) setTempF = 42;
+  setTempRaw = tempFToRaw(setTempF);
   lastSetTempUpdate = millis();
 
   lcd.begin(16, 2);
@@ -63,7 +69,7 @@ void setup(void)
   sensors.setResolution(heatsinkTherm, TEMPERATURE_PRECISION);
 
   sensors.requestTemperatures();
-  prevTempF = sensors.getTempF(internalTherm);
+  prevTempRaw = sensors.getTemp(internalTherm);
   prevTempAt = millis();
 
   attachInterrupt(0, decrementSetTemp, RISING); // Pin 3
@@ -84,7 +90,8 @@ void changeSetTemp(int newTemp)
 {
   unsigned long now = millis();
   if(now < lastSetTempUpdate || (now - lastSetTempUpdate) > 500) {
-    setTempF = newTemp;
+    setTempF   = newTemp;
+    setTempRaw = tempFToRaw(setTempF);
     EEPROM.write(0, newTemp);
     lcd.setCursor(4, 0);
     lcd.print(setTempF);
@@ -97,10 +104,10 @@ void loop(void)
   unsigned long timeSinceChange;
   sensors.requestTemperatures();
 
-  tempF = sensors.getTempF(internalTherm);
-  if(tempF != prevTempF) {
-    tempChange      = tempF - prevTempF;
-    prevTempF       = tempF;
+  tempRaw = sensors.getTemp(internalTherm);
+  if(tempRaw != prevTempRaw) {
+    tempChange      = tempRaw - prevTempRaw;
+    prevTempRaw     = tempRaw;
     prevTempAt      = millis();
     timeSinceChange = 0;
   } else {
@@ -111,20 +118,21 @@ void loop(void)
   // could mess this up
   lcd.setCursor(6,0);
   lcd.print(" Cur ");
-  lcd.print(int(tempF * 100) / 100.0);
+  lcd.print(int(sensors.rawToFahrenheit(tempRaw) * 100) / 100.0);
 
-  if(tempF > (setTempF + 4)) {
+  // 4 * 128
+  if(tempRaw > (setTempRaw + 512)) {
     duty = MAX_DUTY;
-  } else if(tempF < setTempF) {
+  } else if(tempRaw < setTempRaw) {
     // Temp decreasing or 60 seconds since last change
     if(tempChange < 0 || timeSinceChange > 60000) {
-      duty -= long((setTempF - tempF) * 50);
+      duty -= (setTempRaw - tempRaw) / 3;
       if(duty > MAX_DUTY || duty < 1000) duty = 1000;
     }
-  } else if(tempF > setTempF) {
+  } else if(tempRaw > setTempRaw) {
     // Temp increasing or 30 seconds since last change
     if(tempChange > 0 || timeSinceChange > 30000) {
-      duty += long((tempF - setTempF) * 50);
+      duty += (tempRaw - setTempRaw) / 3;
       if(duty > MAX_DUTY) duty = MAX_DUTY;
     }
   }
