@@ -151,9 +151,13 @@ void loop(void)
   now = millis();
   delay(constrain(duty - (now - start), 0, MAX_DUTY));
 
-  digitalWrite(TEC_CONTROL, LOW);
-  delay(constrain(MAX_DUTY - duty, 1000, MAX_DUTY));
+  int off = constrain(MAX_DUTY - duty, 0, MAX_DUTY);
+  if(off > 0) {
+    digitalWrite(TEC_CONTROL, LOW);
+    delay(off);
 
-  digitalWrite(TEC_CONTROL, HIGH);
+    digitalWrite(TEC_CONTROL, HIGH);
+  }
+
   start = millis();
 }
