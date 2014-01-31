@@ -3,13 +3,13 @@
 #include <DallasTemperature.h>
 #include <EEPROM.h>
 
-#define TEC_CONTROL 7
+#define TEC_CONTROL 13
 #define FAN_CONTROL 5
 
 #define FAN_MIN 100
 #define FAN_MAX 255
 
-LiquidCrystal lcd(8, 9, 10, 11, 12, 13);
+LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
 
 #define ONE_WIRE_BUS 6
 #define TEMPERATURE_PRECISION 12
