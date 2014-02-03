@@ -31,6 +31,8 @@ volatile unsigned long lastSetTempUpdate;
 unsigned long duty = 7500;
 unsigned long start;
 unsigned long now;
+unsigned long cummulativeOff = 0;
+unsigned long lastCummulativeOff;
 int16_t tempRaw;
 int16_t prevTempRaw;
 int16_t tempChange;
@@ -47,6 +49,7 @@ void setup(void)
 
   digitalWrite(TEC_CONTROL, HIGH);
   start = millis();
+  lastCummulativeOff = start;
 
   setTempF = EEPROM.read(0);
   if(setTempF > 100) setTempF = 42;
@@ -155,9 +158,26 @@ void loop(void)
   if(off > 0) {
     digitalWrite(TEC_CONTROL, LOW);
     delay(off);
+    cummulativeOff += off;
 
     digitalWrite(TEC_CONTROL, HIGH);
   }
 
   start = millis();
+
+  // Check Cummulative Off
+
+  // Has millis rolled over or has an hour passed
+  if (start < lastCummulativeOff || (start - lastCummulativeOff) > 3600000) {
+    lastCummulativeOff = start;
+    // If off less than 60 seconds
+    // Give the TEC a break
+    if(cummulativeOff < 60000) {
+      digitalWrite(TEC_CONTROL, LOW);
+      delay(constrain((60000 - cummulativeOff) * 2, 0, 60000));
+      digitalWrite(TEC_CONTROL, HIGH);
+      start = millis();
+    }
+    cummulativeOff = 0;
+  }
 }
