@@ -108,6 +108,9 @@ void loop(void)
   sensors.requestTemperatures();
 
   tempRaw = sensors.getTemp(internalTherm);
+  if(tempRaw == DEVICE_DISCONNECTED_RAW) {
+    tempRaw = prevTempRaw;
+  }
   if(tempRaw != prevTempRaw) {
     tempChange      = tempRaw - prevTempRaw;
     prevTempRaw     = tempRaw;
