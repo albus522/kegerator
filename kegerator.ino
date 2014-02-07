@@ -20,9 +20,8 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
 // arrays to hold device addresses
-//DeviceAddress internalTherm, heatsinkTherm;
+//DeviceAddress internalTherm;
 DeviceAddress internalTherm = { 0x28, 0xF0, 0x5D, 0x67, 0x5, 0x0, 0x0, 0x36 };
-DeviceAddress heatsinkTherm = { 0x28, 0x7, 0x7C, 0x68, 0x5, 0x0, 0x0, 0x6E };
 
 #define MAX_DUTY 10000
 
@@ -73,7 +72,6 @@ void setup(void)
 
   // set the resolution
   sensors.setResolution(internalTherm, TEMPERATURE_PRECISION);
-  sensors.setResolution(heatsinkTherm, TEMPERATURE_PRECISION);
 
   sensors.requestTemperatures();
   prevTempRaw = sensors.getTemp(internalTherm);
