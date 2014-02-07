@@ -141,18 +141,18 @@ void loop(void)
 
     // 5 * (5 / 9 * 128)
     if(tempRaw > (setTempRaw + 355)) {
+      if(duty != MAX_DUTY) lastDutyUpdate = now;
       duty = MAX_DUTY;
-      lastDutyUpdate = now;
     } else if(tempRaw < setTempRaw) {
       // Temp decreasing or 60 seconds since last change
-      if((tempChange < 0 && (now < lastDutyUpdate || (now - lastDutyUpdate) > MAX_DUTY)) || timeSinceChange > 60000) {
+      if((tempChange < 0  || timeSinceChange > 60000) && (now < lastDutyUpdate || (now - lastDutyUpdate) > MAX_DUTY)) {
         duty -= (setTempRaw - tempRaw) / 3;
         if(duty > MAX_DUTY || duty < 1000) duty = 1000;
         lastDutyUpdate = now;
       }
     } else if(tempRaw > setTempRaw) {
       // Temp increasing or 30 seconds since last change
-      if((tempChange > 0 && (now < lastDutyUpdate || (now - lastDutyUpdate) > MAX_DUTY)) || timeSinceChange > 30000) {
+      if((tempChange > 0 || timeSinceChange > 30000) && (now < lastDutyUpdate || (now - lastDutyUpdate) > MAX_DUTY)) {
         duty += (tempRaw - setTempRaw) / 3;
         if(duty > MAX_DUTY) duty = MAX_DUTY;
         lastDutyUpdate = now;
@@ -176,7 +176,7 @@ void loop(void)
   now = millis();
   if(curState == LOW) {
     nextStateChange = lastStateChange + ((MAX_DUTY - duty) / 10);
-    if(now > nextStateChange && (nextStateChange > (MAX_DUTY - duty) || now < lastStateChange)) {
+    if(now > nextStateChange && (nextStateChange > ((MAX_DUTY - duty) / 10) || now < lastStateChange)) {
       digitalWrite(TEC_CONTROL, HIGH);
       curState = HIGH;
       if(now > lastStateChange)
@@ -185,7 +185,7 @@ void loop(void)
     }
   } else if(duty < MAX_DUTY) {
     nextStateChange = lastStateChange + (duty / 10);
-    if(now > nextStateChange && (nextStateChange > duty || now < lastStateChange)) {
+    if(now > nextStateChange && (nextStateChange > (duty / 10) || now < lastStateChange)) {
       digitalWrite(TEC_CONTROL, LOW);
       curState = LOW;
       lastStateChange = millis();
