@@ -167,7 +167,7 @@ void loop(void)
     }
 
     if(duty > (MAX_DUTY * 7 / 10)) {
-      analogWrite(FAN_CONTROL, (duty - (MAX_DUTY * 7 / 10)) * (FAN_MAX - FAN_MIN) / (MAX_DUTY * 3 / 10) + FAN_MIN);
+      analogWrite(FAN_CONTROL, (duty - (MAX_DUTY * 0.7)) * (FAN_MAX - FAN_MIN) / (MAX_DUTY * 0.3) + FAN_MIN);
     } else {
       analogWrite(FAN_CONTROL, FAN_MIN);
     }
