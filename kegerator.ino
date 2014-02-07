@@ -28,7 +28,7 @@ DeviceAddress internalTherm = { 0x28, 0xF0, 0x5D, 0x67, 0x5, 0x0, 0x0, 0x36 };
 volatile int setTempF;
 volatile int16_t setTempRaw;
 volatile unsigned long lastSetTempUpdate;
-unsigned long duty = 7500;
+unsigned long duty = 8500;
 unsigned long lastStateChange;
 unsigned long cummulativeOff = 0;
 unsigned long lastCummulativeOff;
