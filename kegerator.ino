@@ -115,8 +115,9 @@ void loop(void)
   unsigned long now;
 
   now = millis();
-  if(sensors.isConversionAvailable(internalTherm) || (now > nextTempAt && (now - nextTempAt) < (MAX_CONVERSION_TIME * 2))) {
+  if(curState == HIGH && (now > nextTempAt || (now < nextTempAt && now > MAX_CONVERSION_TIME))) {
     tempRaw = sensors.getTemp(internalTherm);
+
     sensors.requestTemperatures();
     nextTempAt = millis() + MAX_CONVERSION_TIME;
 
