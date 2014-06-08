@@ -5,6 +5,7 @@
 
 #define TEC_CONTROL 13
 #define FAN_CONTROL 5
+#define INTERNAL_FAN_CONTROL 4
 
 #define FAN_MIN 100
 #define FAN_MAX 255
@@ -28,9 +29,8 @@ DeviceAddress internalTherm = { 0x28, 0xF0, 0x5D, 0x67, 0x5, 0x0, 0x0, 0x36 };
 volatile int setTempF;
 volatile int16_t setTempRaw;
 volatile unsigned long lastSetTempUpdate;
-unsigned long duty = 8500;
+unsigned long duty = MAX_DUTY;
 unsigned long lastStateChange;
-unsigned long cummulativeOff = 0;
 unsigned long lastCummulativeOff;
 unsigned long nextTempAt;
 unsigned long lastDutyUpdate;
@@ -48,8 +48,9 @@ void setup(void)
 {
   pinMode(TEC_CONTROL, OUTPUT);
   analogWrite(FAN_CONTROL, FAN_MIN);
+  digitalWrite(INTERNAL_FAN_CONTROL, HIGH);
 
-  digitalWrite(TEC_CONTROL, HIGH);
+  analogWrite(TEC_CONTROL, 255);
   lastStateChange = millis();
   lastCummulativeOff = lastStateChange;
   lastDutyUpdate = millis();
@@ -111,7 +112,6 @@ void changeSetTemp(int newTemp)
 void loop(void)
 {
   unsigned long timeSinceChange;
-  unsigned long nextStateChange;
   unsigned long now;
 
   now = millis();
@@ -175,18 +175,14 @@ void loop(void)
 
   now = millis();
   if(curState == LOW) {
-    nextStateChange = lastStateChange + ((MAX_DUTY - duty) / 10);
-    if(now > nextStateChange && (nextStateChange > ((MAX_DUTY - duty) / 10) || now < lastStateChange)) {
-      digitalWrite(TEC_CONTROL, HIGH);
+    if(now < lastStateChange || (now - lastStateChange) > ((MAX_DUTY - duty) / 10)) {
+      analogWrite(TEC_CONTROL, 254);
       curState = HIGH;
-      if(now > lastStateChange)
-        cummulativeOff += now - lastStateChange;
       lastStateChange = millis();
     }
   } else if(duty < MAX_DUTY) {
-    nextStateChange = lastStateChange + (duty / 10);
-    if(now > nextStateChange && (nextStateChange > (duty / 10) || now < lastStateChange)) {
-      digitalWrite(TEC_CONTROL, LOW);
+    if(now < lastStateChange || (now - lastStateChange) > (duty / 10)) {
+      analogWrite(TEC_CONTROL, 0);
       curState = LOW;
       lastStateChange = millis();
     }
@@ -194,17 +190,15 @@ void loop(void)
 
   // Check Cummulative Off
   now = millis();
-  // Has millis rolled over or has an hour passed
-  if (now < lastCummulativeOff || (now - lastCummulativeOff) > 3600000) {
+  // Has millis rolled over or have 4 hours passed
+  if(duty == MAX_DUTY && (now < lastCummulativeOff || (now - lastCummulativeOff) > 14400000)) {
     lastCummulativeOff = now;
-    // If off less than 60 seconds
-    // Give the TEC a break
-    if(cummulativeOff < 60000) {
-      digitalWrite(TEC_CONTROL, LOW);
-      delay(constrain((60000 - cummulativeOff) * 2, 0, 60000));
-      digitalWrite(TEC_CONTROL, HIGH);
-      lastStateChange = millis();
-    }
-    cummulativeOff = 0;
+    analogWrite(TEC_CONTROL, 16);
+    analogWrite(FAN_CONTROL, 0);
+    digitalWrite(INTERNAL_FAN_CONTROL, LOW);
+    delay(120000);
+    analogWrite(TEC_CONTROL, 254);
+    digitalWrite(INTERNAL_FAN_CONTROL, HIGH);
+    lastStateChange = millis();
   }
 }
