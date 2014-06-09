@@ -3,13 +3,15 @@
 #include <DallasTemperature.h>
 #include <EEPROM.h>
 
-#define TEC_CONTROL 13
+// Pin config
+
+#define COMPRESSOR_CONTROL 13
 #define FAN_CONTROL 5
 
-#define FAN_MIN 100
-#define FAN_MAX 255
-
 LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
+
+
+// Onewire config
 
 #define ONE_WIRE_BUS 6
 #define TEMPERATURE_PRECISION 12
@@ -19,26 +21,43 @@ OneWire oneWire(ONE_WIRE_BUS);
 
 DallasTemperature sensors(&oneWire);
 
-// arrays to hold device addresses
-//DeviceAddress internalTherm;
+// internal device address
 DeviceAddress internalTherm = { 0x28, 0xF0, 0x5D, 0x67, 0x5, 0x0, 0x0, 0x36 };
 
-#define MAX_DUTY 10000
+
+// Global variables
+
+// 1°F * (5 / 9 * 128) - 1
+#define TEMP_SWING 70
+// 3°F * (5 / 9 * 128)
+#define MAX_TEMP_SWING 213
+// 10°F * (5 / 9 * 128)
+#define HIGH_SPEED_CUT_IN 711
+// 3°F * (5 / 9 * 128)
+#define HIGH_SPEED_CUT_OUT 213
+// 30 seconds
+#define HIGH_SPEED_DELAY 30000
+// 5 minutes
+#define MIN_OFF_TIME 180000
+// Should be about 3000 RPM on BD35F with 101N0220 controller
+#define COMPRESSOR_HIGH_SPEED 90
+// 1 minute
+#define COOL_DOWN_TIME 120000
+
+#define COMP_OFF 0
+#define COMP_ON 1
+#define COMP_HIGH 2
+int curState = 0;
 
 volatile int setTempF;
 volatile int16_t setTempRaw;
 volatile unsigned long lastSetTempUpdate;
-unsigned long duty = 8500;
 unsigned long lastStateChange;
-unsigned long cummulativeOff = 0;
-unsigned long lastCummulativeOff;
 unsigned long nextTempAt;
-unsigned long lastDutyUpdate;
 int16_t tempRaw;
 int16_t prevTempRaw;
-int16_t tempChange;
-unsigned long prevTempAt;
-int curState = HIGH;
+int16_t lowCutout;
+
 
 int16_t tempFToRaw(int temp) {
   return (temp - 32) * 5 * 128 / 9;
@@ -46,13 +65,13 @@ int16_t tempFToRaw(int temp) {
 
 void setup(void)
 {
-  pinMode(TEC_CONTROL, OUTPUT);
-  analogWrite(FAN_CONTROL, FAN_MIN);
+  pinMode(COMPRESSOR_CONTROL, OUTPUT);
+  pinMode(FAN_CONTROL, OUTPUT);
+  analogWrite(COMPRESSOR_CONTROL, 255);
+  digitalWrite(FAN_CONTROL, LOW);
 
-  digitalWrite(TEC_CONTROL, HIGH);
+  // digitalWrite(COMPRESSOR_CONTROL, HIGH);
   lastStateChange = millis();
-  lastCummulativeOff = lastStateChange;
-  lastDutyUpdate = millis();
 
   setTempF = EEPROM.read(0);
   if(setTempF > 100) setTempF = 42;
@@ -64,8 +83,7 @@ void setup(void)
   lcd.print(setTempF);
   lcd.print(" Cur ");
   lcd.setCursor(0, 1);
-  lcd.print("Duty % ");
-  lcd.print(duty / 100.0);
+  lcd.print("State Off");
 
   // Start up the DallasTemperature library
   sensors.begin();
@@ -75,7 +93,6 @@ void setup(void)
 
   sensors.requestTemperatures();
   prevTempRaw = sensors.getTemp(internalTherm);
-  prevTempAt = millis();
 
   sensors.setWaitForConversion(false);
   sensors.requestTemperatures();
@@ -108,6 +125,34 @@ void changeSetTemp(int newTemp)
   }
 }
 
+void setLowCutout()
+{
+  int16_t swing = tempRaw - setTempRaw;
+  if(swing < TEMP_SWING) {
+    swing = TEMP_SWING;
+  }
+  if(swing > MAX_TEMP_SWING) {
+    swing = MAX_TEMP_SWING;
+  }
+  lowCutout = setTempRaw - swing;
+}
+
+void reportCompressorStatus()
+{
+  lcd.setCursor(6,1);
+  lcd.print("          ");
+  lcd.setCursor(6,1);
+  if(curState == COMP_OFF) {
+    lcd.print("Off");
+  } else if(curState == COMP_ON) {
+    lcd.print("On");
+  } else if(curState == COMP_HIGH) {
+    lcd.print("High");
+  } else {
+    lcd.print("WTF?");
+  }
+}
+
 void loop(void)
 {
   unsigned long timeSinceChange;
@@ -115,7 +160,7 @@ void loop(void)
   unsigned long now;
 
   now = millis();
-  if(curState == HIGH && (now > nextTempAt || (now < nextTempAt && now > MAX_CONVERSION_TIME))) {
+  if(now > nextTempAt || (now < nextTempAt && now > MAX_CONVERSION_TIME)) {
     tempRaw = sensors.getTemp(internalTherm);
 
     sensors.requestTemperatures();
@@ -125,86 +170,52 @@ void loop(void)
       tempRaw = prevTempRaw;
     }
     if(tempRaw != prevTempRaw) {
-      tempChange      = tempRaw - prevTempRaw;
-      prevTempRaw     = tempRaw;
-      prevTempAt      = millis();
-      timeSinceChange = 0;
+      prevTempRaw = tempRaw;
 
-      // Refresh because the set temp interrupt
-      // could mess this up
       lcd.setCursor(6,0);
       lcd.print(" Cur ");
       lcd.print(int(sensors.rawToFahrenheit(tempRaw) * 100) / 100.0);
-    } else {
-      timeSinceChange = millis() - prevTempAt;
-    }
-
-    // 5 * (5 / 9 * 128)
-    if(tempRaw > (setTempRaw + 355)) {
-      if(duty != MAX_DUTY) lastDutyUpdate = now;
-      duty = MAX_DUTY;
-    } else if(tempRaw < setTempRaw) {
-      // Temp decreasing or 60 seconds since last change
-      if((tempChange < 0  || timeSinceChange > 60000) && (now < lastDutyUpdate || (now - lastDutyUpdate) > MAX_DUTY)) {
-        duty -= (setTempRaw - tempRaw) / 3;
-        if(duty > MAX_DUTY || duty < 1000) duty = 1000;
-        lastDutyUpdate = now;
-      }
-    } else if(tempRaw > setTempRaw) {
-      // Temp increasing or 30 seconds since last change
-      if((tempChange > 0 || timeSinceChange > 30000) && (now < lastDutyUpdate || (now - lastDutyUpdate) > MAX_DUTY)) {
-        duty += (tempRaw - setTempRaw) / 3;
-        if(duty > MAX_DUTY) duty = MAX_DUTY;
-        lastDutyUpdate = now;
-      }
-    }
-
-    if(lastDutyUpdate == now) {
-      lcd.setCursor(7,1);
-      lcd.print("         ");
-      lcd.setCursor(7,1);
-      lcd.print(duty / 100.0);
-    }
-
-    if(duty > (MAX_DUTY * 7 / 10)) {
-      analogWrite(FAN_CONTROL, (duty - (MAX_DUTY * 0.7)) * (FAN_MAX - FAN_MIN) / (MAX_DUTY * 0.3) + FAN_MIN);
-    } else {
-      analogWrite(FAN_CONTROL, FAN_MIN);
     }
   }
 
-  now = millis();
-  if(curState == LOW) {
-    nextStateChange = lastStateChange + ((MAX_DUTY - duty) / 10);
-    if(now > nextStateChange && (nextStateChange > ((MAX_DUTY - duty) / 10) || now < lastStateChange)) {
-      digitalWrite(TEC_CONTROL, HIGH);
-      curState = HIGH;
-      if(now > lastStateChange)
-        cummulativeOff += now - lastStateChange;
-      lastStateChange = millis();
+  if(curState == COMP_OFF) {
+    if(tempRaw > (setTempRaw + TEMP_SWING)) {
+      if(now < lastStateChange || (now > MIN_OFF_TIME && (now - MIN_OFF_TIME) > lastStateChange)) {
+        lastStateChange = millis();
+        // Off is on the compressor
+        analogWrite(COMPRESSOR_CONTROL, 0);
+        curState = COMP_ON;
+        setLowCutout();
+        reportCompressorStatus();
+        digitalWrite(FAN_CONTROL, HIGH);
+      }
+    } else if(digitalRead(FAN_CONTROL) == HIGH) {
+      if(now < lastStateChange || (now > COOL_DOWN_TIME && (now - COOL_DOWN_TIME) > lastStateChange)) {
+        digitalWrite(FAN_CONTROL, LOW);
+      }
     }
-  } else if(duty < MAX_DUTY) {
-    nextStateChange = lastStateChange + (duty / 10);
-    if(now > nextStateChange && (nextStateChange > (duty / 10) || now < lastStateChange)) {
-      digitalWrite(TEC_CONTROL, LOW);
-      curState = LOW;
+  } else if(curState == COMP_ON) {
+    if(tempRaw < lowCutout) {
       lastStateChange = millis();
+      // On turns the compressor off
+      analogWrite(COMPRESSOR_CONTROL, 255);
+      curState = COMP_OFF;
+      reportCompressorStatus();
+    } else if(tempRaw > (setTempRaw + HIGH_SPEED_CUT_IN)) {
+      if(now < lastStateChange || (now > HIGH_SPEED_DELAY && (now - HIGH_SPEED_DELAY) > lastStateChange)) {
+        lastStateChange = millis();
+        analogWrite(COMPRESSOR_CONTROL, COMPRESSOR_HIGH_SPEED);
+        curState = COMP_HIGH;
+        reportCompressorStatus();
+      }
     }
-  }
-
-  // Check Cummulative Off
-  now = millis();
-  // Has millis rolled over or has an hour passed
-  if (now < lastCummulativeOff || (now - lastCummulativeOff) > 3600000) {
-    lastCummulativeOff = now;
-    // If off less than 60 seconds
-    // Give the TEC a break
-    if(cummulativeOff < 60000) {
-      digitalWrite(TEC_CONTROL, LOW);
-      delay(constrain((60000 - cummulativeOff) * 2, 0, 60000));
-      digitalWrite(TEC_CONTROL, HIGH);
+  } else {
+    if(tempRaw < (setTempRaw + HIGH_SPEED_CUT_OUT)) {
       lastStateChange = millis();
+      // Off is on the compressor
+      analogWrite(COMPRESSOR_CONTROL, 0);
+      curState = COMP_ON;
+      reportCompressorStatus();
     }
-    cummulativeOff = 0;
   }
 }
