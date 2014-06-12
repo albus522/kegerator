@@ -37,12 +37,12 @@ DeviceAddress internalTherm = { 0x28, 0xF0, 0x5D, 0x67, 0x5, 0x0, 0x0, 0x36 };
 #define HIGH_SPEED_CUT_OUT 213
 // 30 seconds
 #define HIGH_SPEED_DELAY 30000
-// 5 minutes
+// 3 minutes
 #define MIN_OFF_TIME 180000
 // Should be about 3000 RPM on BD35F with 101N0220 controller
 #define COMPRESSOR_HIGH_SPEED 90
-// 1 minute
-#define COOL_DOWN_TIME 120000
+// 5 minutes
+#define COOL_DOWN_TIME 300000
 
 #define COMP_OFF 0
 #define COMP_ON 1
