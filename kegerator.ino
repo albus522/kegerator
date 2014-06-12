@@ -27,8 +27,8 @@ DeviceAddress internalTherm = { 0x28, 0xF0, 0x5D, 0x67, 0x5, 0x0, 0x0, 0x36 };
 
 // Global variables
 
-// 1°F * (5 / 9 * 128) - 1
-#define TEMP_SWING 70
+// 1.5°F * (5 / 9 * 128) - 1
+#define TEMP_SWING 106
 // 3°F * (5 / 9 * 128)
 #define MAX_TEMP_SWING 213
 // 10°F * (5 / 9 * 128)
