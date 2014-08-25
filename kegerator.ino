@@ -41,8 +41,6 @@ DeviceAddress internalTherm = { 0x28, 0xF0, 0x5D, 0x67, 0x5, 0x0, 0x0, 0x36 };
 #define MIN_OFF_TIME 180000
 // Should be about 3000 RPM on BD35F with 101N0220 controller
 #define COMPRESSOR_HIGH_SPEED 90
-// 5 minutes
-#define COOL_DOWN_TIME 300000
 
 #define COMP_OFF 0
 #define COMP_ON 1
@@ -68,7 +66,7 @@ void setup(void)
   pinMode(COMPRESSOR_CONTROL, OUTPUT);
   pinMode(FAN_CONTROL, OUTPUT);
   analogWrite(COMPRESSOR_CONTROL, 255);
-  digitalWrite(FAN_CONTROL, LOW);
+  analogWrite(FAN_CONTROL, 1);
 
   // digitalWrite(COMPRESSOR_CONTROL, HIGH);
   lastStateChange = millis();
@@ -187,11 +185,7 @@ void loop(void)
         curState = COMP_ON;
         setLowCutout();
         reportCompressorStatus();
-        digitalWrite(FAN_CONTROL, HIGH);
-      }
-    } else if(digitalRead(FAN_CONTROL) == HIGH) {
-      if(now < lastStateChange || (now > COOL_DOWN_TIME && (now - COOL_DOWN_TIME) > lastStateChange)) {
-        digitalWrite(FAN_CONTROL, LOW);
+        analogWrite(FAN_CONTROL, 175);
       }
     }
   } else if(curState == COMP_ON) {
@@ -201,12 +195,14 @@ void loop(void)
       analogWrite(COMPRESSOR_CONTROL, 255);
       curState = COMP_OFF;
       reportCompressorStatus();
+      analogWrite(FAN_CONTROL, 1);
     } else if(tempRaw > (setTempRaw + HIGH_SPEED_CUT_IN)) {
       if(now < lastStateChange || (now > HIGH_SPEED_DELAY && (now - HIGH_SPEED_DELAY) > lastStateChange)) {
         lastStateChange = millis();
         analogWrite(COMPRESSOR_CONTROL, COMPRESSOR_HIGH_SPEED);
         curState = COMP_HIGH;
         reportCompressorStatus();
+        analogWrite(FAN_CONTROL, 255);
       }
     }
   } else {
