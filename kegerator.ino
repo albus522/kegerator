@@ -31,10 +31,10 @@ DeviceAddress internalTherm = { 0x28, 0xF0, 0x5D, 0x67, 0x5, 0x0, 0x0, 0x36 };
 #define TEMP_SWING 106
 // 3°F * (5 / 9 * 128)
 #define MAX_TEMP_SWING 213
-// 10°F * (5 / 9 * 128)
-#define HIGH_SPEED_CUT_IN 711
-// 3°F * (5 / 9 * 128)
-#define HIGH_SPEED_CUT_OUT 213
+// 5°F * (5 / 9 * 128)
+#define HIGH_SPEED_CUT_IN 356
+// 1.5°F * (5 / 9 * 128)
+#define HIGH_SPEED_CUT_OUT 106
 // 30 seconds
 #define HIGH_SPEED_DELAY 30000
 // 3 minutes
