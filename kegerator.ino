@@ -40,7 +40,7 @@ DeviceAddress internalTherm = { 0x28, 0xF0, 0x5D, 0x67, 0x5, 0x0, 0x0, 0x36 };
 // 3 minutes
 #define MIN_OFF_TIME 180000
 // Should be about 3000 RPM on BD35F with 101N0220 controller
-#define COMPRESSOR_HIGH_SPEED 90
+#define COMPRESSOR_HIGH_SPEED 80
 
 #define COMP_OFF 0
 #define COMP_ON 1
@@ -185,7 +185,7 @@ void loop(void)
         curState = COMP_ON;
         setLowCutout();
         reportCompressorStatus();
-        analogWrite(FAN_CONTROL, 175);
+        analogWrite(FAN_CONTROL, 185);
       }
     }
   } else if(curState == COMP_ON) {
